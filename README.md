@@ -2,7 +2,22 @@
 This repository is created while working with QFlow to perform GDSII layout generation from RTL code. It includes the QFlow setup procedure and workflow.
 
 ## QFlow Setup
-Steps for docker image creation are listed below. A pre-setup docker image can be found (here)[].
+
+### Using Docker Image
+The docker image can be found [here](https://hub.docker.com/r/shrutiprakashgupta/qflow).
+Or accessed through CLI as follows:
+```shell
+docker pull shrutiprakashgupta/qflow
+docker run -it --name qflow --privileged --net=host --expose 8887 -e DISPLAY=$DISPLAY -v $HOME/.Xauthority:/tmp/.Xauthority -v /tmp/.X11-unix:/tmp/.X11-unix -v /dev:/dev -v /home/shruti/Documents/work:/home/work shrutiprakashgupta/qflow:latest bash
+```
+Launch the Docker container with following steps
+```
+xhost +
+docker exec -it qflow /bin/bash
+```
+
+### Docker Image Creation (Just for Reference)
+Steps for docker image creation are listed below.
 1. Create the docker container with Ubuntu 20.04 image
 
     ```shell
@@ -19,6 +34,7 @@ Steps for docker image creation are listed below. A pre-setup docker image can b
     If `sudo` is not the default user, append `sudo` to the following commands. 
     ```shell
     apt-get update
+    apt install neovim -y
     apt install csh tcsh -y
     apt install wget curl tar -y
     apt install build-essential -y
@@ -38,25 +54,40 @@ Steps for docker image creation are listed below. A pre-setup docker image can b
     ./bootstrap
     make
     sudo make install
+    cd ..
+    ```
+    Move to `~` directory and add the following line in .bashrc file and execute command `source .bashrc`
+    ```
+    PATH="/home/cmake-3.18.2/bin:$PATH"
     ```
 5. Install Python and other libraries to support QFlow GUI
 
-    ```
+    ```shell
     apt install python3.8 -y
     apt install python3-tk -y
     apt install tcl-dev tk-dev -y
     ```
-6. Install Yosys (for Synthesis)
-    
+6. Install Iverilog (for RTL compilation)
+
+    ```shell
+    apt-get install -y iverilog
     ```
+7. Gtkwave (for waveform viewing & debugging)
+
+    ```shell
+    apt-get install -y gtkwave
+    ```
+8. Install Yosys (for Synthesis)
+
+    ```shell
     apt install yosys -y
-    yosys -v
+    yosys -h
     ```
-    The second command should return the version number if yosys is installed properly.
-7. Install Graywolf (for Placement)
-    
+    The second command should print the help menu for yosys is it is installed properly.
+9. Install Graywolf (for Placement)
+
     The latest release is from Aug 2018 - version 0.1.6
-    ```
+    ```shell
     git clone https://github.com/rubund/graywolf.git
     cd graywolf
     git checkout 0.1.6
@@ -65,5 +96,203 @@ Steps for docker image creation are listed below. A pre-setup docker image can b
     cmake ..
     make
     make install
+    cd ../../
     ```
-8. 
+10. Install Qrouter (for Routing)
+
+    ```shell
+    git clone https://github.com/RTimothyEdwards/qrouter.git
+    cd qrouter
+    git checkout qrouter-1.4
+    ./configure
+    make
+    make install
+    cd ../
+    ```
+11. Install Magic (for working with GDSII Layout and performing Design Rule Check) 
+
+    ```shell
+    git clone https://github.com/RTimothyEdwards/magic.git
+    cd magic
+    git checkout magic-8.3
+    ./configure
+    make
+    make install
+    cd ../
+    ```
+12. Install Netgen (for Layout-Versus-Schematic (LVS) verification)
+
+    ```shell
+    git clone https://github.com/RTimothyEdwards/netgen.git
+    cd netgen
+    git checkout netgen-1.5
+    apt-get install -y m4
+    ./configure
+    make
+    make install
+    cd ../
+    ```
+13. Install QFlow (for the complete toolchain)
+
+    The tools (corresponding binary files) installed before need to be present in discoverable paths. 
+    Usually they would be in `/usr/bin/` or `/usr/local/bin/` directories. 
+    Otherwise, their path should be added in the `.bashrc` file and sourced (as mentioned before in case of cmake installation. 
+    Notice that some of the tools would not be found after the configuration step, but these are optional (i.e. some other tool is present for the same task) and thus won't create any problem.
+    ```shell
+    git clone https://github.com/RTimothyEdwards/qflow.git
+    cd qflow
+    git checkout qflow-1.4
+    ./configure
+    make
+    make install
+    cd ../
+    ```
+14. Test the setup
+
+    Close the docker container, and execute `xhost +` command on the local machine, to enable docker to access display. 
+    Restart container with `docker exec -it qflow /bin/bash`. 
+    Using map9v3.v file provided at [QFlow](http://opencircuitdesign.com/qflow/) to test the setup.
+    Store the file in `work/` directory and lauch qflow with command `qflow gui`.
+15. Creating Docker image
+
+    ```shell
+    docker commit <container-id> <hub-user>/<repo-name>[:<tag>]
+    ```
+    or
+    ```shell
+    docker commit <existing-container> <hub-user>/<repo-name>[:<tag>]
+    ```
+
+## Physical Design with QFlow
+Once the RTL design and debugging is complete, the physical design procedure is performed with QFlow. To achieve this, store 
+the RTL file(s) in the `/home/work/input/` directory. In case of multiple files, add a `.fl` file listing all of them in hierarchical 
+order. </br>
+A `qflow.tcl` script is included in the `/home/work` directory which automates the flow and can be modified as per the requirement. 
+Make sure to enable/disable the various steps (like synth, place, route, drc, lvs, etc.) from this script as needed, and also to 
+specify parameters for special flavoured RTL2GDSII flow. The structure of this tcl script is explained below.
+
+### qflow.tcl Script Structure
+1. Command line arguments
+
+    The top module name & technology to be used are provided to the tcl script as command-line arguments. Here, the file containing the 
+    top module should ideally be named as <top_module>.v or <top_module>.sv and in case of multiple files <top_module>.fl should also be 
+    included.
+2. Directory structure creation
+
+    The script performs a sanity check for the availability of input directory & RTL. It then creates the output directory with 
+    the <top_module> name and the `source`, `synthesis` & `layout` directories inside it. This is required for proper log and output 
+    dumping from QFlow, otherwise everything will be dumped in a common file and will be difficult to manage. 
+3. qflow_vars.sh file creation
+
+    QFlow requires the presence of qflow_vars.sh file specifying the various directories (including RTL, technology files & output). This is 
+    created through the tcl script.
+4. project_vars.sh file creation
+
+    This file is used by QFlow to run a specified flavour of physical design. In simpler words, it can be used to provide extra 
+    parameters to different tools (like Yosys, Qrouter & others). The tcl script writes this file and contains several variables 
+    controlling the values being dumped in `project_vars.sh` file. Supporting all of these variables through command-line would not 
+    be easily manageable & thus they are defined inside the `qflow.tcl` script itself. They can be modified as required. </br>
+    The following section explains the parameters in this file, for better understanding of the flexibility provided by QFlow.
+
+5. Execution
+
+    
+### project_vars.sh File Structure
+1. Flow Options
+
+    Lists the tools to be used for various steps. Should not be modified.
+    ```shell
+    # Flow options:
+    #------------------------------------------------------------
+    # set synthesis_tool = yosys
+    # set placement_tool = graywolf
+    # set sta_tool       = vesta
+    # set router_tool    = qrouter
+    # set migrate_tool   = magic_db
+    # set lvs_tool       = netgen_lvs
+    # set drc_tool       = magic_drc
+    # set gds_tool       = magic_gds
+    # set display_tool   = magic_view
+    #------------------------------------------------------------
+    ```
+2. Synthesis Command Options
+
+    Includes the options for Synthesis and Fanout(load) balancing steps
+    ```
+    # Synthesis command options:
+    #------------------------------------------------------------
+    # set hard_macros       = (in case macros/predefined modules are to be used) path to the directory containing macro definitions, i.e. the corresponding lib file
+    # set yosys_options     = extra options to be passed to yosys (yosys -h lists them)
+    # set yosys_script      = created automatically if not provided (yosys commands listed in a .ys file)
+    # set yosys_debug       =
+    # set abc_script        = created automatically if not provided
+    # set nobuffers         = to ignore buffers at output (usually this should be left empty)
+    # set inbuffers         = to introduce input buffers
+    # set postproc_options  =
+    # set xspice_options    =
+    # set fill_ratios       = (specify the ratio of various types of fill cells to use)
+    # set nofanout          = to not consider the fanout at each node after synthesis
+    # set fanout_options    = `"-l 200 -c 30"` (-l for maximum allowable latency & -c for load capacitance at each node, i.e. gate i/o)
+    # set source_file_list  = `$top_module.fl` (in case multiple files are present)
+    # set is_system_verilog = `1` (1 if system verilog constructs are used. However, Iverilog supports only limited SV constructs)
+    #------------------------------------------------------------
+    ```
+3. STA (Static Timing Analysis) Command Options
+
+    Vesta is used to perform STA. The following paramaters are included
+    ```
+    # STA command options:
+    #------------------------------------------------------------
+    # Minimum period of the clock use "--period value" (value in ps)
+    # set vesta_options     = `"--summary reports --long"` (for specifying minimum expected clock period as 5ps, add --period 5)
+    #------------------------------------------------------------
+    ```
+4. Placement Command Options
+
+    Includes options for Graywolf
+    ```
+    # Placement command options:
+    #------------------------------------------------------------
+    # set initial_density    = (this value can be atmost 1, and should be set to lower values for big designs, as at 100% density routing congestion may occur)
+    # set graywolf_options   = (check with graywolf -h)
+    # set addspacers_options = "-stripe 5 50 PG -nostretch" (to specify Power and Gate alternate strips of 5 microns spaced at 50 microns)
+    # set addspacers_power   =
+    #------------------------------------------------------------
+    ```
+5. Router Command Options
+
+    Options specified for Qrouter 
+    ```
+    # Router command options:
+    #------------------------------------------------------------
+    # set qrouter_options   =
+    # set route_show        = `1` (set to 1 for running router with view ON)
+    # set route_layers      = (specify the number of layers to use)
+    # set via_use           = (list of available vias)
+    # set via_stacks        = (number of vias which can be stacked over each other)
+    # set qrouter_nocleanup =
+    #------------------------------------------------------------
+    ```
+6. Other Options
+
+    These options relate to other steps like DRC, LVS & Others.
+    ```
+    # Other options:
+    #------------------------------------------------------------
+    # set migrate_gdsview =
+    # set migrate_options =
+    # set lef_options = `-hide` (this command-line argument can be used to dump abstract blocks in case of very big designs and thus reduce the size of LEF file)
+    # set drc_gdsview = (set this to use GDS-view of cells instead of abstracted views for DRC, this would increase DRC reliability but will increase time & complexity as well)
+    # set drc_options =
+    # set gds_options =
+    #------------------------------------------------------------
+    ```
+
+The parameters which are not explained in detail can be left as it is for general use case. However, more details on 
+project_vars.sh parameters can be found [here](http://opencircuitdesign.com/qflow/reference.html#GUI). 
+
+## References
+1. [Muchen He's Blog](https://www.muchen.ca/documents/ELEC402/t0-qflow.html)
+2. [QFlow Github Repo](https://github.com/RTimothyEdwards/qflow.git)
+3. [QFlow Website](http://opencircuitdesign.com/qflow/)
+4. [Tcl cheat sheet](http://www.cheat-sheets.org/saved-copy/TclTk_quickref.pdf)
