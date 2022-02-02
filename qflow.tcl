@@ -67,8 +67,14 @@ if {$file_found == 1} {
     }
 }
 
+# Input CEL2 File (Optional)
+set file_found [find_file $input_dir $top_module.cel2] 
+if {$file_found == 1} {
+    file copy -force $input_dir/$top_module.cel2 $output_dir/layout/
+} 
+
 # ------------- Creating qflow_vars.sh -------------
-set  varsfile [open "qflow_vars.sh" w+]
+set  varsfile [open $output_dir/qflow_vars.sh w+]
 
 puts $varsfile "#!/bin/tcsh -f"
 puts $varsfile "#-------------------------------------------"
@@ -89,10 +95,9 @@ puts $varsfile [join [list "set logdir=" $output_dir "/log"] ""]
 puts $varsfile "#-------------------------------------------"
 
 close $varsfile 
-file copy -force /home/work/qflow_vars.sh $output_dir/
 
 # ------------- Creating project_vars.sh -------------
-set  projfile [open "project_vars.sh" w+]
+set  projfile [open $output_dir/project_vars.sh w+]
 
 puts $projfile "#!/bin/tcsh -f"
 puts $projfile "#------------------------------------------------------------"
@@ -171,9 +176,10 @@ puts $projfile "# set gds_options     = "
 puts $projfile "#------------------------------------------------------------"
 
 close $projfile 
-file copy -force /home/work/project_vars.sh $output_dir/
 
-# ------------ Executing RTL2GDSII flow ------------
+# ------------ Executing QFlow to generate command file ------------
+# The qflow_exec.sh file will be dumped in output_dir, individual commands can be 
+# uncommented and stepped through by executing :- tcsh qflow_exec.sh
 cd $output_dir
-set script [join [list "qflow synthesize place route " $top_module] ""]
+set script [join [list "qflow " $top_module] ""]
 puts [exec /usr/bin/sh -c $script] 

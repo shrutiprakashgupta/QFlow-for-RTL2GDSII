@@ -1,0 +1,46 @@
+padgroup input permute
+twpin_clock nonfixed
+twpin_start nonfixed
+twpin_reset nonfixed
+twpin_done nonfixed
+twpin_N[0] nonfixed
+twpin_N[1] nonfixed
+twpin_N[2] nonfixed
+twpin_N[3] nonfixed
+twpin_N[4] nonfixed
+twpin_N[5] nonfixed
+twpin_N[6] nonfixed
+twpin_N[7] nonfixed
+twpin_N[8] nonfixed
+restrict side LT
+
+padgroup output permute
+twpin_dp[0] nonfixed
+twpin_dp[1] nonfixed
+twpin_dp[2] nonfixed
+twpin_dp[3] nonfixed
+twpin_dp[4] nonfixed
+twpin_dp[5] nonfixed
+twpin_dp[6] nonfixed
+twpin_dp[7] nonfixed
+twpin_dp[8] nonfixed
+restrict side R
+
+padgroup diagnostic permute
+twpin_counter[0] nonfixed
+twpin_counter[1] nonfixed
+twpin_counter[2] nonfixed
+twpin_counter[3] nonfixed
+twpin_counter[4] nonfixed
+twpin_counter[5] nonfixed
+twpin_counter[6] nonfixed
+twpin_counter[7] nonfixed
+twpin_sr[0] nonfixed
+twpin_sr[1] nonfixed
+twpin_sr[2] nonfixed
+twpin_sr[3] nonfixed
+twpin_sr[4] nonfixed
+twpin_sr[5] nonfixed
+twpin_sr[6] nonfixed
+twpin_sr[7] nonfixed
+restrict side B

@@ -11,7 +11,7 @@ docker pull shrutiprakashgupta/qflow
 docker run -it --name qflow --privileged --net=host --expose 8887 -e DISPLAY=$DISPLAY -v $HOME/.Xauthority:/tmp/.Xauthority -v /tmp/.X11-unix:/tmp/.X11-unix -v /dev:/dev -v /home/shruti/Documents/work:/home/work shrutiprakashgupta/qflow:latest bash
 ```
 Launch the Docker container with following steps
-```
+```shell
 xhost +
 docker exec -it qflow /bin/bash
 ```
@@ -164,39 +164,66 @@ Steps for docker image creation are listed below.
     ```
 
 ## Physical Design with QFlow
-Once the RTL design and debugging is complete, the physical design procedure is performed with QFlow. To achieve this, store 
-the RTL file(s) in the `/home/work/input/` directory. In case of multiple files, add a `.fl` file listing all of them in hierarchical 
-order. </br>
-A `qflow.tcl` script is included in the `/home/work` directory which automates the flow and can be modified as per the requirement. 
-Make sure to enable/disable the various steps (like synth, place, route, drc, lvs, etc.) from this script as needed, and also to 
-specify parameters for special flavoured RTL2GDSII flow. The structure of this tcl script is explained below.
+Once the RTL design and debugging is complete, the physical design procedure is performed with QFlow. To achieve this, store the RTL file(s) in the `/home/work/input/` directory. In case of multiple files, add a `.fl` file listing all of them in hierarchical order. </br>
+A `qflow.tcl` script is included in the `/home/work` directory which automates the flow and can be modified as per the requirement. Make sure to specify parameters for special flavoured RTL2GDSII flow. The structure of this tcl script is explained below.
 
 ### qflow.tcl Script Structure
-1. Command line arguments
+1. __Command line arguments__
 
-    The top module name & technology to be used are provided to the tcl script as command-line arguments. Here, the file containing the 
-    top module should ideally be named as <top_module>.v or <top_module>.sv and in case of multiple files <top_module>.fl should also be 
-    included.
-2. Directory structure creation
+    The top module name & technology to be used are provided to the tcl script as command-line arguments. Here, the file containing the top module should ideally be named as <top_module>.v or <top_module>.sv and in case of multiple files <top_module>.fl should also be included.
 
-    The script performs a sanity check for the availability of input directory & RTL. It then creates the output directory with 
-    the <top_module> name and the `source`, `synthesis` & `layout` directories inside it. This is required for proper log and output 
-    dumping from QFlow, otherwise everything will be dumped in a common file and will be difficult to manage. 
-3. qflow_vars.sh file creation
+2. __Directory structure creation__
 
-    QFlow requires the presence of qflow_vars.sh file specifying the various directories (including RTL, technology files & output). This is 
-    created through the tcl script.
-4. project_vars.sh file creation
+    The script performs a sanity check for the availability of input directory & RTL. It then creates the output directory with the <top_module> name and the `source`, `synthesis` & `layout` directories inside it. This is required for proper log and output dumping from QFlow, otherwise everything will be dumped in a common file and will be difficult to manage. 
 
-    This file is used by QFlow to run a specified flavour of physical design. In simpler words, it can be used to provide extra 
-    parameters to different tools (like Yosys, Qrouter & others). The tcl script writes this file and contains several variables 
-    controlling the values being dumped in `project_vars.sh` file. Supporting all of these variables through command-line would not 
-    be easily manageable & thus they are defined inside the `qflow.tcl` script itself. They can be modified as required. </br>
-    The following section explains the parameters in this file, for better understanding of the flexibility provided by QFlow.
+3. __qflow_vars.sh file creation__
 
-5. Execution
+    QFlow requires the presence of qflow_vars.sh file specifying the various directories (including RTL, technology files & output). This is created through the tcl script.
 
+4. __project_vars.sh file creation__
+
+    This file is used by QFlow to run a specified flavour of physical design. In simpler words, it can be used to provide extra parameters to different tools (like Yosys, Qrouter & others). The tcl script writes this file and contains several variables controlling the values being dumped in `project_vars.sh` file. Supporting all of these variables through command-line would not be easy to manage & thus they are defined inside the `qflow.tcl` script itself. They can be modified as required. </br>
+    The [following section](https://github.com/shrutiprakashgupta/QFlow-for-RTL2GDSII#project_varssh-file-structure) explains the parameters in this file, for better understanding of the flexibility provided by QFlow.
+
+5. __Execution__
     
+    ```tclsh
+    tclsh qflow.tcl <top_module> <tech_node>
+    # example : tclsh qflow.tcl map9v3 osu035
+    ```
+    The qflow.tcl script runs `qflow <top_module>` command at the end, which creates a file `qflow_exec.sh` in the `output_dir`. User can move to the output_dir after executing qflow.tcl & uncomment one command at a time in the `qflow_exec.sh` file to step through the processes. Use the following command 
+
+    ```tcsh
+    tcsh qflow_exec.sh
+    ```
+
+6. __RTL2GDSII Flow Steps__
+
+    I am adding the paths for script files for quick reference (to understand the interface of each tool)
+    1. **Synthesis** (/usr/local/share/qflow/scripts/yosys.sh)
+    2. **Placement** (/usr/local/share/qflow/scripts/graywolf.sh)
+    3. **Prelayout** STA (/usr/local/share/qflow/scripts/vesta.sh)
+    4. **Routing** (/usr/local/share/qflow/scripts/qrouter.sh)
+    5. **Postlayout** STA (/usr/local/share/qflow/scripts/vesta.sh) with extra flag -d 
+    6. **Migration** (/usr/local/share/qflow/scripts/magic_db.sh) used to extract the circuit in Magic and Ngspice formats. By default the abstract view is created, i.e. all cells and subcells are shown as boxes with i/o pins, while their internal circuitary is not shown.  
+    7. **Design Rule Check** (/usr/local/share/qflow/scripts/magic_drc.sh) the script dump at stdout shows drc = num, where num is the number of drc violations.
+    8. **Layout vs Schematic Check** (/usr/local/share/qflow/scripts/netgen_lvs.sh) currently it only performs pin-to-pin mtching. 
+    9. **GDS Generation** (/usr/local/share/qflow/scripts/magic_gds.sh) generates GDS file
+    10. **Clean up** (/usr/local/share/qflow/scripts/cleanup.sh)
+    11. **Open Magic View** (/usr/local/share/qflow/scripts/magic_view.sh)
+
+7. __Step by Step Execution__
+
+    1. Yosys creates a `<top_module>.ys` module in the `output_dir/source` folder. Any changes or addition to the synthesis commands can be made in this file and synthesis can be rerun with these settings.
+    2. Graywolf can be provided with a file `<top_module>.cel2` in `output_dir/layout` folder, which holds the pin placement hints. A sample file is provided in the `input` directory here. For more information check [this link](http://opencircuitdesign.com/qflow/tutorial.html#Pins). 
+    3. It is always a good idea to run placement & routing without pin constraints (or hint) file first and then rerun with it. This helps in making sure that no errors occur due to overconstraint on pin placements. 
+    4. STA (Static Timing Analysis) is performed twice, once after placement and then after routing. The difference between both of these cases is that the previous one is just for sanity check. However, once routing is performed, the delays of cells and wires used for routing is also added. This gives higher accuracy in the timing details. 
+    5. Two important components to be monitored in the STA reports are - maximum frequency at which design would work, and wether the design meets hold timings. In case it does not meet hold timings, additional buffers need to be added in failing design routes.
+    6. QFlow uses vesta for STA, and itself generates the delay files (spef & sdf files) consulting the verilog netlist and the technology files. The extra flag `-d` provided to vesta directs it to use annotated delay values while performing the timing analysis.
+    7. The mazimum frequency would decrease in post_sta report as compared to the sta report, due to additional delay from the routing components. 
+
+
+
 ### project_vars.sh File Structure
 1. Flow Options
 
@@ -218,7 +245,7 @@ specify parameters for special flavoured RTL2GDSII flow. The structure of this t
 2. Synthesis Command Options
 
     Includes the options for Synthesis and Fanout(load) balancing steps
-    ```
+    ```shell
     # Synthesis command options:
     #------------------------------------------------------------
     # set hard_macros       = (in case macros/predefined modules are to be used) path to the directory containing macro definitions, i.e. the corresponding lib file
@@ -240,7 +267,7 @@ specify parameters for special flavoured RTL2GDSII flow. The structure of this t
 3. STA (Static Timing Analysis) Command Options
 
     Vesta is used to perform STA. The following paramaters are included
-    ```
+    ```shell 
     # STA command options:
     #------------------------------------------------------------
     # Minimum period of the clock use "--period value" (value in ps)
@@ -250,7 +277,7 @@ specify parameters for special flavoured RTL2GDSII flow. The structure of this t
 4. Placement Command Options
 
     Includes options for Graywolf
-    ```
+    ```shell
     # Placement command options:
     #------------------------------------------------------------
     # set initial_density    = (this value can be atmost 1, and should be set to lower values for big designs, as at 100% density routing congestion may occur)
@@ -262,7 +289,7 @@ specify parameters for special flavoured RTL2GDSII flow. The structure of this t
 5. Router Command Options
 
     Options specified for Qrouter 
-    ```
+    ```shell
     # Router command options:
     #------------------------------------------------------------
     # set qrouter_options   =
@@ -276,7 +303,7 @@ specify parameters for special flavoured RTL2GDSII flow. The structure of this t
 6. Other Options
 
     These options relate to other steps like DRC, LVS & Others.
-    ```
+    ```shell 
     # Other options:
     #------------------------------------------------------------
     # set migrate_gdsview =
