@@ -210,7 +210,7 @@ A `qflow.tcl` script is included in the `/home/work` directory which automates t
     8. **Layout vs Schematic Check** (/usr/local/share/qflow/scripts/netgen_lvs.sh) currently it only performs pin-to-pin mtching. 
     9. **GDS Generation** (/usr/local/share/qflow/scripts/magic_gds.sh) generates GDS file
     10. **Clean up** (/usr/local/share/qflow/scripts/cleanup.sh)
-    11. **Open Magic View** (/usr/local/share/qflow/scripts/magic_view.sh)
+    11. **Open Magic View** (/usr/local/share/qflow/scripts/magic_view.sh) </br>
 
 7. __Step by Step Execution__
 
@@ -221,8 +221,10 @@ A `qflow.tcl` script is included in the `/home/work` directory which automates t
     5. Two important components to be monitored in the STA reports are - maximum frequency at which design would work, and wether the design meets hold timings. In case it does not meet hold timings, additional buffers need to be added in failing design routes.
     6. QFlow uses vesta for STA, and itself generates the delay files (spef & sdf files) consulting the verilog netlist and the technology files. The extra flag `-d` provided to vesta directs it to use annotated delay values while performing the timing analysis.
     7. The mazimum frequency would decrease in post_sta report as compared to the sta report, due to additional delay from the routing components. 
-
-
+    8. One of the prime reasons of failing routing can be the technology node (in this case - of osu libraries) as they have very few metal layers. Osu018 has 6 metal layers and should be used preferably.
+    9. Migration step is for extracting circuits in ngspice & magic formats which are further used in design rule check and layout vs schematic checks.
+    10. When Design rule check reports errors, manual changes are required in the design. An example of this is included in this repo.
+    11. GDS file generated can be opened with Magic or Klayout tools.
 
 ### project_vars.sh File Structure
 1. Flow Options
@@ -315,8 +317,15 @@ A `qflow.tcl` script is included in the `/home/work` directory which automates t
     #------------------------------------------------------------
     ```
 
-The parameters which are not explained in detail can be left as it is for general use case. However, more details on 
-project_vars.sh parameters can be found [here](http://opencircuitdesign.com/qflow/reference.html#GUI). 
+    The parameters which are not explained in detail can be left as it is for general use case. However, more details on project_vars.sh parameters can be found [here](http://opencircuitdesign.com/qflow/reference.html#GUI). 
+
+## My Projects
+
+I have generated the GDSII file for the various projects which I have created before, using the QFlow toolchain. These projects are listed here 
+1. [Pipelined ALU](https://github.com/shrutiprakashgupta/Pipelined-ALU)  
+    The files used for drc_error removal and for a minute change in netgen_lvs.sh script are added in the output folder for reference.
+2. [Map9v3](http://opencircuitdesign.com/qflow/)
+    This rtl file is taken from the QFlow tutorial page. 
 
 ## References
 1. [Muchen He's Blog](https://www.muchen.ca/documents/ELEC402/t0-qflow.html)

@@ -53,6 +53,10 @@ set fl_file ""
 set file_found [find_file $input_dir $top_module.fl] 
 if {$file_found == 1} {
     file copy -force $input_dir/$top_module.fl $output_dir/source/
+    set src_list [open $input_dir/$top_module.fl r]              
+    while {[gets $src_list line]>=0} {   
+        file copy -force $input_dir/$line $output_dir/source/  
+    }
     set fl_file $top_module.fl
 } else { 
     set file_found [find_file $input_dir $top_module.v]
