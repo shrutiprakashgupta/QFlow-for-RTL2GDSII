@@ -1,5 +1,6 @@
 map9v3/
 write_back/
+fp_adder/
 openckt/
 project_vars.sh
 qflow_vars.sh
